@@ -94,7 +94,7 @@ export function ComboboxFormField<ItemType, T extends FieldValues>({
                             }}
                           >
                             <CheckIcon className={cn('mr-2 h-4 w-4', false ? 'opacity-100' : 'opacity-0')} />
-                            {messages.global.noSelection}
+                            {'Sin selección'}
                           </CommandItem>
                         )}
 

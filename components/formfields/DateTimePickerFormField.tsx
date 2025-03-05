@@ -745,8 +745,6 @@ export function DateTimePickerFormField<T extends FieldValues>({
   controllerProps,
   label,
   description,
-  placeholder,
-  disabled,
   required,
   hidden,
   hourCycle = 12
