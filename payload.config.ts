@@ -1,38 +1,39 @@
 // storage-adapter-import-placeholder
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
-import { payloadCloudPlugin } from '@payloadcms/payload-cloud'
-import { lexicalEditor } from '@payloadcms/richtext-lexical'
+
+import sharp from 'sharp' // sharp-import
 import path from 'path'
-import { buildConfig } from 'payload'
+import { buildConfig, PayloadRequest } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Users } from './collections/Users'
-import { Media } from './collections/Media'
+import { getServerSideURL } from './lib/getURL'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 export default buildConfig({
   admin: {
-    user: Users.slug,
     importMap: {
       baseDir: path.resolve(dirname),
     },
+    user: Users.slug,
   },
-  collections: [Users, Media],
-  editor: lexicalEditor(),
-  secret: process.env.PAYLOAD_SECRET || '',
-  typescript: {
-    outputFile: path.resolve(dirname, 'payload-types.ts'),
-  },
+  // This config helps us configure global or default features that the other editors can inherit
   db: mongooseAdapter({
     url: process.env.DATABASE_URI || '',
     connectOptions: {
-      dbName: process.env.DATABASE_NAME || '',
+      dbName: process.env.DATABASE_NAME || 'payload',
     }
   }),
+  collections: [Users],
+  cors: [getServerSideURL()].filter(Boolean),
   plugins: [
-    payloadCloudPlugin(),
     // storage-adapter-placeholder
   ],
+  secret: process.env.PAYLOAD_SECRET,
+  sharp,
+  typescript: {
+    outputFile: path.resolve(dirname, 'payload-types.ts'),
+  },
 })

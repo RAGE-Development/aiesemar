@@ -1,27 +1,34 @@
-import type { CollectionConfig } from 'payload'
+import { CollectionConfig } from "payload";
+import { z } from "zod";
 
 export const Users: CollectionConfig = {
   slug: 'users',
   admin: {
-    useAsTitle: 'email',
+    useAsTitle: 'name',
   },
-  auth: true,
-  labels: { singular: 'User', plural: 'Users' },
+  auth: {
+    tokenExpiration: 3600,
+    verify: false,
+    maxLoginAttempts: 5,
+    lockTime: 600 * 1000,
+  },
   fields: [
-    // Email added by default
+    {
+      name: 'id',
+      type: 'text',
+    },
     {
       name: 'name',
+      label: 'Name',
       type: 'text',
-      required: true,
+      required: false,
     },
-    {
-      name: 'role',
-      type: 'select',
-      options: [
-        { label: 'Administrator', value: 'admin' },
-        { label: 'Employee', value: 'employee' },
-      ],
-      defaultValue: 'employee',
-    },
-  ],
+  ]
 }
+
+export const UserInput = z.object({
+  id: z.string(),
+  name: z.string(),
+})
+
+export type UserInput = z.input<typeof UserInput>

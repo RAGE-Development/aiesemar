@@ -39,3 +39,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+build
+dist / media
+node_modules
+.DS_Store
+.env
+.next
+.vercel
+
+# Payload default media upload directory
+public/media/
+
+public/robots.txt
+public/sitemap*.xml
