@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 
 const PRESETS = [
   { name: "Default", gain: 5 },
@@ -25,6 +25,7 @@ const useASMRVideoPlayer = () => {
   const [isOffline, setIsOffline] = useState(false);
   const [savedVideos, setSavedVideos] = useState<string[]>([]);
   const [videoURL, setVideoURL] = useState<string | null>(null);
+  const [bassBoostEnabled, setBassBoostEnabled] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const bassFilterRef = useRef<BiquadFilterNode | null>(null);
@@ -56,17 +57,21 @@ const useASMRVideoPlayer = () => {
     };
   }, [videoURL]);
 
-  // Update bass boost when preset or customGain changes
+  // Update bass boost when preset or customGain or enabled changes
   useEffect(() => {
     if (bassFilterRef.current) {
-      let gain = customGain;
-      const presetObj = PRESETS.find((p) => p.name === preset);
-      if (presetObj && presetObj.name !== "Custom") {
-        gain = presetObj.gain;
+      if (bassBoostEnabled) {
+        let gain = customGain;
+        const presetObj = PRESETS.find((p) => p.name === preset);
+        if (presetObj && presetObj.name !== "Custom") {
+          gain = presetObj.gain;
+        }
+        bassFilterRef.current.gain.value = gain;
+      } else {
+        bassFilterRef.current.gain.value = 0;
       }
-      bassFilterRef.current.gain.value = gain;
     }
-  }, [preset, customGain]);
+  }, [preset, customGain, bassBoostEnabled]);
 
   // Handle online/offline status
   useEffect(() => {
@@ -138,6 +143,16 @@ const useASMRVideoPlayer = () => {
     }
   };
 
+  const handleSeekSeconds = useCallback((delta: number) => {
+    if (videoRef.current && videoRef.current.duration) {
+      let newTime = videoRef.current.currentTime + delta;
+      newTime = Math.max(0, Math.min(newTime, videoRef.current.duration));
+      videoRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+      setProgress((newTime / videoRef.current.duration) * 100);
+    }
+  }, []);
+
   const toggleMute = () => {
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
@@ -171,6 +186,19 @@ const useASMRVideoPlayer = () => {
     setPreset("Custom");
   };
 
+  // Keyboard bindings for left/right arrow seek
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        handleSeekSeconds(-5);
+      } else if (e.key === "ArrowRight") {
+        handleSeekSeconds(5);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSeekSeconds]);
+
   return {
     refs: { videoRef },
     state: {
@@ -189,9 +217,11 @@ const useASMRVideoPlayer = () => {
       preset,
       customGain,
       PRESETS,
+      bassBoostEnabled,
     },
     setState: {
       setShowControls,
+      setBassBoostEnabled,
     },
     methods: {
       handleFileChange,
@@ -199,6 +229,7 @@ const useASMRVideoPlayer = () => {
       handleVolumeChange,
       handleTimeUpdate,
       handleSeek,
+      handleSeekSeconds,
       toggleMute,
       setSpeed,
       handlePresetChange,

@@ -5,6 +5,11 @@ import { Inter } from "next/font/google";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
+export const metadata = {
+  title: "AIESEMAR - ASMR Video Player",
+  description: "AIESEMAR - ASMR Video Player with Bass Boost and Theme Switcher",
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -12,7 +17,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <head>
+        <title>AIESEMAR - ASMR Video Player</title>
+        <meta name="description" content="AIESEMAR - ASMR Video Player with Bass Boost and Theme Switcher" />
+      </head>
+      <body className={inter.className + " bg-background text-foreground min-h-screen"}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
         </ThemeProvider>

@@ -1,12 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import useASMRVideoPlayer from "./ASMRVideoPlayer.module";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Play,
   Pause,
@@ -17,7 +16,8 @@ import {
   Sun,
   Headphones,
   Wifi,
-  WifiOff
+  WifiOff,
+  Film
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -30,40 +30,6 @@ const formatTime = (seconds: number) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
-// Custom slider for video progress
-const CustomSlider = ({
-  value,
-  onChange,
-  className,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-  className?: string;
-}) => {
-  return (
-    <motion.div
-      className={cn(
-        "relative w-full h-1 bg-secondary/50 rounded-full cursor-pointer",
-        className
-      )}
-      onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const percentage = (x / rect.width) * 100;
-        onChange(Math.min(Math.max(percentage, 0), 100));
-      }}
-    >
-      <motion.div
-        className="absolute top-0 left-0 h-full bg-primary rounded-full"
-        style={{ width: `${value}%` }}
-        initial={{ width: 0 }}
-        animate={{ width: `${value}%` }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      />
-    </motion.div>
-  );
-};
-
 // Theme toggle component using next-themes
 interface ThemeToggleProps {
   className?: string;
@@ -71,13 +37,8 @@ interface ThemeToggleProps {
 
 const ThemeToggle = ({ className }: ThemeToggleProps) => {
   const { theme, setTheme } = useTheme();
-
   const isDark = theme === "dark";
-
-  const toggleTheme = () => {
-    setTheme(isDark ? "light" : "dark");
-  };
-
+  const toggleTheme = () => setTheme(isDark ? "light" : "dark");
   return (
     <div
       className={cn(
@@ -101,35 +62,21 @@ const ThemeToggle = ({ className }: ThemeToggleProps) => {
           )}
         >
           {isDark ? (
-            <Moon
-              className="w-4 h-4 text-foreground"
-              strokeWidth={1.5}
-            />
+            <Moon className="w-4 h-4 text-foreground" strokeWidth={1.5} />
           ) : (
-            <Sun
-              className="w-4 h-4 text-foreground"
-              strokeWidth={1.5}
-            />
+            <Sun className="w-4 h-4 text-foreground" strokeWidth={1.5} />
           )}
         </div>
         <div
           className={cn(
             "flex justify-center items-center w-6 h-6 rounded-full transition-transform duration-300",
-            isDark
-              ? "bg-transparent"
-              : "transform -translate-x-8"
+            isDark ? "bg-transparent" : "transform -translate-x-8"
           )}
         >
           {isDark ? (
-            <Sun
-              className="w-4 h-4 text-muted-foreground"
-              strokeWidth={1.5}
-            />
+            <Sun className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
           ) : (
-            <Moon
-              className="w-4 h-4 text-muted-foreground"
-              strokeWidth={1.5}
-            />
+            <Moon className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
           )}
         </div>
       </div>
@@ -137,7 +84,47 @@ const ThemeToggle = ({ className }: ThemeToggleProps) => {
   );
 };
 
+const Switch = ({
+  checked,
+  onChange,
+  label,
+  className = "",
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label?: string;
+  className?: string;
+  disabled?: boolean;
+}) => (
+  <label className={cn("flex items-center gap-2 cursor-pointer", className, disabled && "opacity-50")}>
+    <span className="text-sm">{label}</span>
+    <button
+      type="button"
+      className={cn(
+        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+        checked ? "bg-primary" : "bg-muted"
+      )}
+      aria-checked={checked}
+      role="switch"
+      tabIndex={0}
+      onClick={() => !disabled && onChange(!checked)}
+      disabled={disabled}
+    >
+      <span
+        className={cn(
+          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+          checked ? "translate-x-6" : "translate-x-1"
+        )}
+      />
+    </button>
+  </label>
+);
+
 const ASMRVideoPlayer = () => {
+  const [cinemaMode, setCinemaMode] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const {
     refs: { videoRef },
     state: {
@@ -155,14 +142,16 @@ const ASMRVideoPlayer = () => {
       preset,
       customGain,
       PRESETS,
+      bassBoostEnabled,
     },
-    setState: { setShowControls },
+    setState: { setShowControls, setBassBoostEnabled },
     methods: {
       handleFileChange,
       togglePlay,
       handleVolumeChange,
       handleTimeUpdate,
       handleSeek,
+      handleSeekSeconds,
       toggleMute,
       setSpeed,
       handlePresetChange,
@@ -176,209 +165,261 @@ const ASMRVideoPlayer = () => {
     handleFileChange(file);
   };
 
+  // Video progress slider handler
+  const onProgressSliderChange = (value: number) => {
+    handleSeek(value);
+  };
+
+  // Layout classes
+  const mainLayout = cinemaMode
+    ? "flex flex-col items-center w-full"
+    : "flex flex-row w-full gap-8 items-start";
+
+  const playerWrapper = cinemaMode
+    ? "w-full flex flex-col items-center"
+    : "flex-1 min-w-[320px]";
+
+  const controlsWrapper = cinemaMode
+    ? "w-full flex flex-row justify-center mt-4"
+    : "w-[340px] min-w-[260px] flex flex-col gap-4";
+
+  // File select header
+  const fileSelectHeader = (
+    <div className="w-full flex items-center justify-start mb-4">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={onFileInputChange}
+      />
+      <Button
+        onClick={() => fileInputRef.current?.click()}
+        variant="default"
+        size="sm"
+      >
+        Select Video
+      </Button>
+      {videoURL && (
+        <span className="ml-4 text-xs text-muted-foreground truncate max-w-[300px]">
+          {(() => {
+            try {
+              const url = new URL(videoURL);
+              return decodeURIComponent(url.pathname.split("/").pop() || "");
+            } catch {
+              return "";
+            }
+          })()}
+        </span>
+      )}
+    </div>
+  );
+
   return (
-    <Card className={cn("relative w-full max-w-4xl mx-auto overflow-hidden transition-colors duration-300")}>
-      <div className="p-4 flex justify-between items-center border-b border-border">
-        <h2 className="text-lg font-medium text-foreground">ASMR Video Player</h2>
-        <div className="flex items-center gap-3">
-          {isOffline ? (
-            <WifiOff className="h-5 w-5 text-destructive" />
-          ) : (
-            <Wifi className="h-5 w-5 text-primary" />
-          )}
-          <ThemeToggle />
+    <div className={cn("w-full flex flex-row sm:flex-col", cinemaMode ? "flex flex-col items-center" : "")}>
+      {/* Cinema mode toggle */}
+      <div className="w-full flex justify-end mb-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setCinemaMode((v) => !v)}
+          className="gap-2"
+        >
+          <Film className="h-5 w-5" />
+          {cinemaMode ? "Exit Cinema" : "Cinema Mode"}
+        </Button>
+      </div>
+      <div className={mainLayout}>
+        {/* File select header above player */}
+        <div className={cn(playerWrapper, "flex-col")}>
+          {fileSelectHeader}
+          <div className="relative w-full">
+            {videoURL ? (
+              <video
+                ref={videoRef}
+                className={cn(
+                  "w-full aspect-video bg-black rounded-lg shadow-lg",
+                  cinemaMode ? "max-h-[70vh]" : "max-h-[60vh]"
+                )}
+                onTimeUpdate={handleTimeUpdate}
+                src={videoURL}
+                onClick={togglePlay}
+                tabIndex={0}
+              />
+            ) : (
+              <div className="w-full aspect-video rounded-xl bg-muted flex items-center justify-center text-muted-foreground mb-4">
+                Select a video file to begin
+              </div>
+            )}
+
+            {/* Controls (play, pause, mute, speed) */}
+            <div className="flex items-center gap-4 mt-2 px-2">
+              <Button
+                onClick={togglePlay}
+                variant="ghost"
+                size="icon"
+                className="text-foreground hover:bg-secondary"
+                disabled={!videoURL}
+              >
+                {isPlaying ? (
+                  <Pause className="h-5 w-5" />
+                ) : (
+                  <Play className="h-5 w-5" />
+                )}
+              </Button>
+              <Button
+                onClick={toggleMute}
+                variant="ghost"
+                size="icon"
+                className="text-foreground hover:bg-secondary"
+                disabled={!videoURL}
+              >
+                {isMuted ? (
+                  <VolumeX className="h-5 w-5" />
+                ) : volume > 0.5 ? (
+                  <Volume2 className="h-5 w-5" />
+                ) : (
+                  <Volume1 className="h-5 w-5" />
+                )}
+              </Button>
+              <div className="w-24">
+                <Slider
+                  value={[volume * 100]}
+                  min={0}
+                  max={100}
+                  step={1}
+                  onValueChange={handleVolumeChange}
+                  className="h-2 [&_[role=slider]]:bg-primary [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:rounded-full"
+                  disabled={!videoURL}
+                />
+              </div>
+              <div className="flex items-center gap-1">
+                {[0.5, 1, 1.5, 2].map((speed) => (
+                  <Button
+                    key={speed}
+                    onClick={() => setSpeed(speed)}
+                    variant={playbackSpeed === speed ? "default" : "ghost"}
+                    size="sm"
+                    className={cn(
+                      "text-foreground hover:bg-secondary",
+                      playbackSpeed === speed && "bg-secondary"
+                    )}
+                    disabled={!videoURL}
+                  >
+                    {speed}x
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Playback bar always visible */}
+            <div className="flex items-center gap-2 mt-2 px-2">
+              <span className="text-xs text-muted-foreground w-10 text-right">{formatTime(currentTime)}</span>
+              <Slider
+                value={[progress]}
+                min={0}
+                max={100}
+                step={0.1}
+                onValueChange={([val = 0]) => onProgressSliderChange(val)}
+                className="flex-1 h-2 [&_[role=slider]]:bg-primary [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:rounded-full"
+                disabled={!videoURL}
+              />
+              <span className="text-xs text-muted-foreground w-10">{formatTime(duration)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Controls to the right in normal mode, below in cinema mode */}
+        <div className={controlsWrapper}>
+          <BassBoostControls
+            {...{
+              bassBoostEnabled,
+              setBassBoostEnabled,
+              PRESETS,
+              preset,
+              handlePresetChange,
+              customGain,
+              handleCustomGainChange,
+            }}
+          />
         </div>
       </div>
-
-      <div className="p-4">
-        <label className="block mb-4">
-          <span className="text-sm font-medium">Load Video File</span>
-          <input
-            type="file"
-            accept="video/*"
-            className="block mt-1"
-            onChange={onFileInputChange}
-          />
-        </label>
-      </div>
-
-      <motion.div
-        className="relative w-full"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        onMouseEnter={() => setShowControls(true)}
-        onMouseLeave={() => setShowControls(false)}
-      >
-        {videoURL ? (
-          <video
-            ref={videoRef}
-            className="w-full aspect-video bg-black"
-            onTimeUpdate={handleTimeUpdate}
-            src={videoURL}
-            onClick={togglePlay}
-          />
-        ) : (
-          <div className="w-full aspect-video rounded-xl bg-muted flex items-center justify-center text-muted-foreground mb-4">
-            Select a video file to begin
-          </div>
-        )}
-
-        <AnimatePresence>
-          {showControls && videoURL && (
-            <motion.div
-              className="absolute bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-md"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-foreground text-sm">
-                  {formatTime(currentTime)}
-                </span>
-                <CustomSlider
-                  value={progress}
-                  onChange={handleSeek}
-                  className="flex-1"
-                />
-                <span className="text-foreground text-sm">{formatTime(duration)}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <motion.div
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Button
-                      onClick={togglePlay}
-                      variant="ghost"
-                      size="icon"
-                      className="text-foreground hover:bg-secondary"
-                    >
-                      {isPlaying ? (
-                        <Pause className="h-5 w-5" />
-                      ) : (
-                        <Play className="h-5 w-5" />
-                      )}
-                    </Button>
-                  </motion.div>
-                  <div className="flex items-center gap-x-1">
-                    <motion.div
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <Button
-                        onClick={toggleMute}
-                        variant="ghost"
-                        size="icon"
-                        className="text-foreground hover:bg-secondary"
-                      >
-                        {isMuted ? (
-                          <VolumeX className="h-5 w-5" />
-                        ) : volume > 0.5 ? (
-                          <Volume2 className="h-5 w-5" />
-                        ) : (
-                          <Volume1 className="h-5 w-5" />
-                        )}
-                      </Button>
-                    </motion.div>
-
-                    <div className="w-24">
-                      <Slider
-                        value={[volume * 100]}
-                        min={0}
-                        max={100}
-                        step={1}
-                        onValueChange={handleVolumeChange}
-                        className="h-2 [&_[role=slider]]:bg-primary [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:rounded-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {[0.5, 1, 1.5, 2].map((speed) => (
-                    <motion.div
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      key={speed}
-                    >
-                      <Button
-                        onClick={() => setSpeed(speed)}
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          "text-foreground hover:bg-secondary",
-                          playbackSpeed === speed && "bg-secondary"
-                        )}
-                      >
-                        {speed}x
-                      </Button>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-
-      <Tabs defaultValue="equalizer" className="p-4">
-        <TabsList className="mb-4">
-          <TabsTrigger value="equalizer">Equalizer</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="equalizer" className="space-y-4">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap gap-2">
-              {PRESETS.filter((p) => p.name !== "Custom").map((presetObj) => (
-                <Button
-                  key={presetObj.name}
-                  variant={preset === presetObj.name ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handlePresetChange(presetObj.name)}
-                >
-                  {presetObj.name}
-                </Button>
-              ))}
-              <Button
-                variant={preset === "Custom" ? "default" : "outline"}
-                size="sm"
-                onClick={() => handlePresetChange("Custom")}
-              >
-                Custom
-              </Button>
-            </div>
-            {preset === "Custom" && (
-              <div>
-                <Label htmlFor="custom-bass" className="text-sm font-medium text-foreground mb-2 block">
-                  Custom Bass Gain ({customGain} dB)
-                </Label>
-                <Slider
-                  id="custom-bass"
-                  value={[customGain]}
-                  min={0}
-                  max={30}
-                  step={1}
-                  onValueChange={handleCustomGainChange}
-                  className="h-2 [&_[role=slider]]:bg-primary [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:rounded-full"
-                />
-              </div>
-            )}
-            {preset !== "Custom" && (
-              <div>
-                <Label className="text-sm font-medium text-foreground mb-2 block">
-                  Bass Gain: {bassBoost} dB
-                </Label>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
-    </Card>
+    </div>
   );
 };
+
+function BassBoostControls({
+  bassBoostEnabled,
+  setBassBoostEnabled,
+  PRESETS,
+  preset,
+  handlePresetChange,
+  customGain,
+  handleCustomGainChange,
+}: {
+  bassBoostEnabled: boolean;
+  setBassBoostEnabled: (v: boolean) => void;
+  PRESETS: { name: string; gain: number }[];
+  preset: string;
+  handlePresetChange: (name: string) => void;
+  customGain: number;
+  handleCustomGainChange: (v: number[]) => void;
+}) {
+  return (
+    <Card className="w-full p-4">
+      <Switch
+        checked={bassBoostEnabled}
+        onChange={setBassBoostEnabled}
+        label="Bass Boost"
+        className="mb-2"
+      />
+      <div className="flex flex-wrap gap-2 mb-2">
+        {PRESETS.filter((p) => p.name !== "Custom").map((presetObj) => (
+          <Button
+            key={presetObj.name}
+            variant={preset === presetObj.name ? "default" : "outline"}
+            size="sm"
+            onClick={() => handlePresetChange(presetObj.name)}
+            disabled={!bassBoostEnabled}
+          >
+            {presetObj.name}
+          </Button>
+        ))}
+        <Button
+          variant={preset === "Custom" ? "default" : "outline"}
+          size="sm"
+          onClick={() => handlePresetChange("Custom")}
+          disabled={!bassBoostEnabled}
+        >
+          Custom
+        </Button>
+      </div>
+      {preset === "Custom" && (
+        <div>
+          <Label htmlFor="custom-bass" className="text-sm font-medium text-foreground mb-2 block">
+            Custom Bass Gain ({customGain} dB)
+          </Label>
+          <Slider
+            id="custom-bass"
+            value={[customGain]}
+            min={0}
+            max={30}
+            step={1}
+            onValueChange={handleCustomGainChange}
+            className="h-2 [&_[role=slider]]:bg-primary [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:rounded-full"
+            disabled={!bassBoostEnabled}
+          />
+        </div>
+      )}
+      {preset !== "Custom" && (
+        <div>
+          <Label className="text-sm font-medium text-foreground mb-2 block">
+            Bass Gain: {PRESETS.find((p) => p.name === preset)?.gain ?? 0} dB
+          </Label>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 export default ASMRVideoPlayer;
