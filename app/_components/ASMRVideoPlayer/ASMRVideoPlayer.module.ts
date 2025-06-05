@@ -20,7 +20,7 @@ const useASMRVideoPlayer = () => {
   const [showControls, setShowControls] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [preset, setPreset] = useState(PRESETS[0].name);
+  const [preset, setPreset] = useState(PRESETS[0]?.name || "Default");
   const [customGain, setCustomGain] = useState(5);
   const [isOffline, setIsOffline] = useState(false);
   const [savedVideos, setSavedVideos] = useState<string[]>([]);
@@ -32,10 +32,12 @@ const useASMRVideoPlayer = () => {
 
   // Initialize audio context for bass boost
   useEffect(() => {
-    if (videoRef.current && !audioContextRef.current) {
+    const video = videoRef.current;
+    if (!video) return; // Fix: guard for undefined videoRef.current
+    if (!audioContextRef.current) {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       audioContextRef.current = new AudioContext();
-      sourceNodeRef.current = audioContextRef.current.createMediaElementSource(videoRef.current);
+      sourceNodeRef.current = audioContextRef.current.createMediaElementSource(video);
 
       // Create bass filter
       bassFilterRef.current = audioContextRef.current.createBiquadFilter();
@@ -101,74 +103,82 @@ const useASMRVideoPlayer = () => {
   };
 
   const togglePlay = () => {
-    if (videoRef.current) {
+    const video = videoRef.current;
+    if (video) {
       if (isPlaying) {
-        videoRef.current.pause();
+        video.pause();
       } else {
         if (audioContextRef.current?.state === 'suspended') {
           audioContextRef.current.resume();
         }
-        videoRef.current.play();
+        video.play();
       }
-      setIsPlaying(!isPlaying);
+      setIsPlaying((prev) => !prev);
     }
   };
 
   const handleVolumeChange = (value: number[]) => {
-    if (videoRef.current) {
-      const newVolume = value[0] / 100;
-      videoRef.current.volume = newVolume;
+    const video = videoRef.current;
+    if (video) {
+      const newVolume = (value && typeof value[0] === "number" ? value[0] : 0) / 100;
+      video.volume = newVolume;
       setVolume(newVolume);
       setIsMuted(newVolume === 0);
     }
   };
 
   const handleTimeUpdate = () => {
-    if (videoRef.current) {
+    const video = videoRef.current;
+    if (video) {
       const progress =
-        (videoRef.current.currentTime / videoRef.current.duration) * 100;
+        (video.currentTime / (video.duration || 1)) * 100;
       setProgress(isFinite(progress) ? progress : 0);
-      setCurrentTime(videoRef.current.currentTime);
-      setDuration(videoRef.current.duration);
+      setCurrentTime(video.currentTime);
+      setDuration(video.duration || 0);
     }
   };
 
   const handleSeek = (value: number) => {
-    if (videoRef.current && videoRef.current.duration) {
-      const time = (value / 100) * videoRef.current.duration;
+    const video = videoRef.current;
+    if (video && video.duration) {
+      const time = (value / 100) * video.duration;
       if (isFinite(time)) {
-        videoRef.current.currentTime = time;
+        video.currentTime = time;
         setProgress(value);
       }
     }
   };
 
   const handleSeekSeconds = useCallback((delta: number) => {
-    if (videoRef.current && videoRef.current.duration) {
-      let newTime = videoRef.current.currentTime + delta;
-      newTime = Math.max(0, Math.min(newTime, videoRef.current.duration));
-      videoRef.current.currentTime = newTime;
+    const video = videoRef.current;
+    if (video && video.duration) {
+      let newTime = video.currentTime + delta;
+      newTime = Math.max(0, Math.min(newTime, video.duration));
+      video.currentTime = newTime;
       setCurrentTime(newTime);
-      setProgress((newTime / videoRef.current.duration) * 100);
+      setProgress((newTime / video.duration) * 100);
     }
   }, []);
 
   const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-      if (!isMuted) {
+    const video = videoRef.current;
+    if (video) {
+      const willBeMuted = !video.muted;
+      video.muted = willBeMuted;
+      setIsMuted(willBeMuted);
+      if (willBeMuted) {
         setVolume(0);
       } else {
-        setVolume(0.7);
-        videoRef.current.volume = 0.7;
+        setVolume(video.volume ?? 0.7);
+        video.volume = video.volume ?? 0.7;
       }
     }
   };
 
   const setSpeed = (speed: number) => {
-    if (videoRef.current) {
-      videoRef.current.playbackRate = speed;
+    const video = videoRef.current;
+    if (video) {
+      video.playbackRate = speed;
       setPlaybackSpeed(speed);
     }
   };

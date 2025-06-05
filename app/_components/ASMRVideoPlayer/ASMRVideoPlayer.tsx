@@ -24,7 +24,7 @@ const formatTime = (seconds: number) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
-// Switch component for toggles
+// Switch component for toggles (improved for light mode)
 const Switch = ({
   checked,
   onChange,
@@ -43,8 +43,10 @@ const Switch = ({
     <button
       type="button"
       className={cn(
-        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-        checked ? "bg-primary" : "bg-muted"
+        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors border",
+        checked
+          ? "bg-primary border-primary"
+          : "bg-gray-200 border-gray-400 dark:bg-zinc-800 dark:border-zinc-700"
       )}
       aria-checked={checked}
       role="switch"
@@ -54,8 +56,10 @@ const Switch = ({
     >
       <span
         className={cn(
-          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-          checked ? "translate-x-6" : "translate-x-1"
+          "inline-block h-4 w-4 transform rounded-full transition-transform",
+          checked
+            ? "translate-x-6 bg-white border border-gray-300"
+            : "translate-x-1 bg-gray-400 border border-gray-500 dark:bg-zinc-600 dark:border-zinc-700"
         )}
       />
     </button>
@@ -153,14 +157,15 @@ const ASMRVideoPlayer = () => {
       playlist.length > 0 &&
       currentIndex !== null &&
       currentIndex >= 0 &&
-      currentIndex < playlist.length
+      currentIndex < playlist.length &&
+      playlist[currentIndex] !== undefined
     ) {
       setYtLoading(true);
       setYtVideoUrl(null);
       fetch("/api/yt-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: playlist[currentIndex].id }),
+        body: JSON.stringify({ id: playlist[currentIndex]!.id }),
       })
         .then((res) => res.json())
         .then((data) => {
@@ -182,22 +187,22 @@ const ASMRVideoPlayer = () => {
     }
   };
 
-  // Layout classes
+  // Layout classes with responsive design
   const mainLayout = cinemaMode
     ? "flex flex-col items-center w-full"
-    : "flex flex-row w-full gap-8 items-start";
+    : "flex flex-col lg:flex-row w-full gap-4 lg:gap-8 items-start";
 
   const playerWrapper = cinemaMode
     ? "w-full flex flex-col items-center"
-    : "flex-1 min-w-[320px]";
+    : "w-full lg:flex-1 lg:min-w-[320px]";
 
   const controlsWrapper = cinemaMode
     ? "w-full flex flex-row justify-center mt-4"
-    : "w-[340px] min-w-[260px] flex flex-col gap-4";
+    : "w-full lg:w-[340px] lg:min-w-[260px] flex flex-col gap-4";
 
-  // File select header
+  // File select header with responsive design
   const fileSelectHeader = (
-    <div className="w-full flex items-center justify-start mb-4 gap-4">
+    <div className="w-full flex flex-col md:flex-row md:items-center justify-start mb-4 gap-4">
       <input
         ref={fileInputRef}
         type="file"
@@ -205,37 +210,40 @@ const ASMRVideoPlayer = () => {
         className="hidden"
         onChange={onFileInputChange}
       />
-      <Button
-        onClick={() => fileInputRef.current?.click()}
-        variant="default"
-        size="sm"
-      >
-        Select Video
-      </Button>
-      {localVideoURL && (
-        <span className="text-xs text-muted-foreground truncate max-w-[300px]">
-          {(() => {
-            try {
-              const url = new URL(localVideoURL);
-              return decodeURIComponent(url.pathname.split("/").pop() || "");
-            } catch {
-              return "";
-            }
-          })()}
-        </span>
-      )}
-      <div className="flex items-center gap-2 ml-8">
+      <div className="flex items-center gap-4">
+        <Button
+          onClick={() => fileInputRef.current?.click()}
+          variant="default"
+          size="sm"
+        >
+          Select Video
+        </Button>
+        {localVideoURL && (
+          <span className="text-xs text-muted-foreground truncate max-w-[200px] md:max-w-[300px]">
+            {(() => {
+              try {
+                const url = new URL(localVideoURL);
+                return decodeURIComponent(url.pathname.split("/").pop() || "");
+              } catch {
+                return "";
+              }
+            })()}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:ml-8">
         <input
           type="text"
           placeholder="Paste YouTube playlist URL"
           value={playlistUrl}
           onChange={(e) => setPlaylistUrl(e.target.value)}
-          className="px-2 py-1 border rounded text-sm w-64"
+          className="px-2 py-1 border rounded text-sm w-full sm:w-64"
         />
         <Button
           onClick={handleImportPlaylist}
           size="sm"
           disabled={playlistLoading || !playlistUrl}
+          className="whitespace-nowrap"
         >
           {playlistLoading ? (
             <>
@@ -248,7 +256,7 @@ const ASMRVideoPlayer = () => {
         </Button>
       </div>
       {playlistError && (
-        <span className="ml-2 text-xs text-red-500">{playlistError}</span>
+        <span className="text-xs text-red-500 break-words">{playlistError}</span>
       )}
     </div>
   );
@@ -382,9 +390,9 @@ const ASMRVideoPlayer = () => {
           </div>
         </div>
 
-        {/* Playlist sidebar */}
+        {/* Playlist sidebar - responsive */}
         {playlist.length > 0 && (
-          <div className="w-80 min-w-[220px] max-w-xs flex flex-col gap-2 border-l border-border pl-4">
+          <div className="w-full lg:w-80 lg:min-w-[220px] lg:max-w-xs flex flex-col gap-2 border-t lg:border-t-0 lg:border-l border-border pt-4 lg:pt-0 lg:pl-4">
             <div className="font-semibold mb-2">Playlist</div>
             {playlist.map((item, idx) => (
               <Button

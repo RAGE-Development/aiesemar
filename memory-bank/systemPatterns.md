@@ -5,7 +5,7 @@
 - **Frontend Framework:** Next.js (app directory structure detected)
 - **Component Structure:** Components organized under `components/` and `components/ui/`
 - **Styling:** Tailwind CSS (tailwind.config.mjs, postcss.config.js present)
-- **API Layer:** Custom API routes under `app/(payload)/api/`
+- **API Layer:** Custom API routes under `app/api/`
 - **Admin/Backend:** Payload CMS integration (payload.config.ts, collections/ directory)
 - **Public Assets:** Static files in `public/`
 
@@ -26,7 +26,6 @@
 ## Component Relationships
 
 - UI components in `components/ui/` are likely used by higher-level components in `components/` and pages in `app/(app)/`.
-- Admin and API logic separated under `app/(payload)/admin/` and `app/(payload)/api/`.
 
 ## Critical Implementation Paths
 
