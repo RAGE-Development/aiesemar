@@ -12,16 +12,10 @@ import {
   Volume2,
   Volume1,
   VolumeX,
-  Moon,
-  Sun,
-  Headphones,
-  Wifi,
-  WifiOff,
-  Film
+  Film,
+  Loader2
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useTheme } from "next-themes";
 
 // Format time for video player
 const formatTime = (seconds: number) => {
@@ -30,60 +24,7 @@ const formatTime = (seconds: number) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
-// Theme toggle component using next-themes
-interface ThemeToggleProps {
-  className?: string;
-}
-
-const ThemeToggle = ({ className }: ThemeToggleProps) => {
-  const { theme, setTheme } = useTheme();
-  const isDark = theme === "dark";
-  const toggleTheme = () => setTheme(isDark ? "light" : "dark");
-  return (
-    <div
-      className={cn(
-        "flex w-16 h-8 p-1 rounded-full cursor-pointer transition-all duration-300",
-        isDark
-          ? "bg-zinc-950 border border-zinc-800"
-          : "bg-white border border-zinc-200",
-        className
-      )}
-      onClick={toggleTheme}
-      role="button"
-      tabIndex={0}
-    >
-      <div className="flex justify-between items-center w-full">
-        <div
-          className={cn(
-            "flex justify-center items-center w-6 h-6 rounded-full transition-transform duration-300",
-            isDark
-              ? "transform translate-x-0 bg-zinc-800"
-              : "transform translate-x-8 bg-gray-200"
-          )}
-        >
-          {isDark ? (
-            <Moon className="w-4 h-4 text-foreground" strokeWidth={1.5} />
-          ) : (
-            <Sun className="w-4 h-4 text-foreground" strokeWidth={1.5} />
-          )}
-        </div>
-        <div
-          className={cn(
-            "flex justify-center items-center w-6 h-6 rounded-full transition-transform duration-300",
-            isDark ? "bg-transparent" : "transform -translate-x-8"
-          )}
-        >
-          {isDark ? (
-            <Sun className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-          ) : (
-            <Moon className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
+// Switch component for toggles
 const Switch = ({
   checked,
   onChange,
@@ -125,6 +66,18 @@ const ASMRVideoPlayer = () => {
   const [cinemaMode, setCinemaMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Playlist state
+  const [playlistUrl, setPlaylistUrl] = useState("");
+  const [playlist, setPlaylist] = useState<{ id: string; title: string }[]>([]);
+  const [playlistLoading, setPlaylistLoading] = useState(false);
+  const [playlistError, setPlaylistError] = useState<string | null>(null);
+  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
+  const [ytVideoUrl, setYtVideoUrl] = useState<string | null>(null);
+  const [ytLoading, setYtLoading] = useState(false);
+
+  // Local file state
+  const [localVideoURL, setLocalVideoURL] = useState<string | null>(null);
+
   const {
     refs: { videoRef },
     state: {
@@ -137,7 +90,6 @@ const ASMRVideoPlayer = () => {
       currentTime,
       duration,
       bassBoost,
-      isOffline,
       videoURL,
       preset,
       customGain,
@@ -163,11 +115,71 @@ const ASMRVideoPlayer = () => {
   const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     handleFileChange(file);
+    if (file) {
+      setLocalVideoURL(URL.createObjectURL(file));
+      setCurrentIndex(null);
+      setYtVideoUrl(null);
+    }
   };
 
-  // Video progress slider handler
-  const onProgressSliderChange = (value: number) => {
-    handleSeek(value);
+  // Playlist import handler
+  const handleImportPlaylist = async () => {
+    setPlaylistLoading(true);
+    setPlaylistError(null);
+    setPlaylist([]);
+    setCurrentIndex(null);
+    setYtVideoUrl(null);
+    setLocalVideoURL(null);
+    try {
+      const res = await fetch("/api/yt-playlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: playlistUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to import playlist");
+      setPlaylist(data.playlist);
+      setCurrentIndex(0);
+    } catch (e: any) {
+      setPlaylistError(e.message || "Unknown error");
+    } finally {
+      setPlaylistLoading(false);
+    }
+  };
+
+  // Fetch stream URL for current playlist video
+  React.useEffect(() => {
+    if (
+      playlist.length > 0 &&
+      currentIndex !== null &&
+      currentIndex >= 0 &&
+      currentIndex < playlist.length
+    ) {
+      setYtLoading(true);
+      setYtVideoUrl(null);
+      fetch("/api/yt-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: playlist[currentIndex].id }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          setYtVideoUrl(data.url || null);
+        })
+        .catch(() => setYtVideoUrl(null))
+        .finally(() => setYtLoading(false));
+    }
+  }, [playlist, currentIndex]);
+
+  // Autoplay next video in playlist
+  const handleEnded = () => {
+    if (
+      playlist.length > 0 &&
+      currentIndex !== null &&
+      currentIndex < playlist.length - 1
+    ) {
+      setCurrentIndex(currentIndex + 1);
+    }
   };
 
   // Layout classes
@@ -185,7 +197,7 @@ const ASMRVideoPlayer = () => {
 
   // File select header
   const fileSelectHeader = (
-    <div className="w-full flex items-center justify-start mb-4">
+    <div className="w-full flex items-center justify-start mb-4 gap-4">
       <input
         ref={fileInputRef}
         type="file"
@@ -200,11 +212,11 @@ const ASMRVideoPlayer = () => {
       >
         Select Video
       </Button>
-      {videoURL && (
-        <span className="ml-4 text-xs text-muted-foreground truncate max-w-[300px]">
+      {localVideoURL && (
+        <span className="text-xs text-muted-foreground truncate max-w-[300px]">
           {(() => {
             try {
-              const url = new URL(videoURL);
+              const url = new URL(localVideoURL);
               return decodeURIComponent(url.pathname.split("/").pop() || "");
             } catch {
               return "";
@@ -212,11 +224,49 @@ const ASMRVideoPlayer = () => {
           })()}
         </span>
       )}
+      <div className="flex items-center gap-2 ml-8">
+        <input
+          type="text"
+          placeholder="Paste YouTube playlist URL"
+          value={playlistUrl}
+          onChange={(e) => setPlaylistUrl(e.target.value)}
+          className="px-2 py-1 border rounded text-sm w-64"
+        />
+        <Button
+          onClick={handleImportPlaylist}
+          size="sm"
+          disabled={playlistLoading || !playlistUrl}
+        >
+          {playlistLoading ? (
+            <>
+              <Loader2 className="animate-spin h-4 w-4 mr-2" />
+              Importing...
+            </>
+          ) : (
+            "Import Playlist"
+          )}
+        </Button>
+      </div>
+      {playlistError && (
+        <span className="ml-2 text-xs text-red-500">{playlistError}</span>
+      )}
     </div>
   );
 
+  // Determine which video source to use
+  const videoSrc = localVideoURL
+    ? localVideoURL
+    : ytVideoUrl
+    ? ytVideoUrl
+    : null;
+
+  // Playback bar handler
+  const onPlaybackSliderChange = (val: number) => {
+    handleSeek(val);
+  };
+
   return (
-    <div className={cn("w-full flex flex-row sm:flex-col", cinemaMode ? "flex flex-col items-center" : "")}>
+    <div className={cn("w-full", cinemaMode ? "flex flex-col items-center" : "")}>
       {/* Cinema mode toggle */}
       <div className="w-full flex justify-end mb-2">
         <Button
@@ -234,7 +284,7 @@ const ASMRVideoPlayer = () => {
         <div className={cn(playerWrapper, "flex-col")}>
           {fileSelectHeader}
           <div className="relative w-full">
-            {videoURL ? (
+            {videoSrc ? (
               <video
                 ref={videoRef}
                 className={cn(
@@ -242,13 +292,16 @@ const ASMRVideoPlayer = () => {
                   cinemaMode ? "max-h-[70vh]" : "max-h-[60vh]"
                 )}
                 onTimeUpdate={handleTimeUpdate}
-                src={videoURL}
+                src={videoSrc}
                 onClick={togglePlay}
                 tabIndex={0}
+                controls={false}
+                autoPlay
+                onEnded={handleEnded}
               />
             ) : (
               <div className="w-full aspect-video rounded-xl bg-muted flex items-center justify-center text-muted-foreground mb-4">
-                Select a video file to begin
+                Select a video file or import a playlist to begin
               </div>
             )}
 
@@ -259,7 +312,7 @@ const ASMRVideoPlayer = () => {
                 variant="ghost"
                 size="icon"
                 className="text-foreground hover:bg-secondary"
-                disabled={!videoURL}
+                disabled={!videoSrc}
               >
                 {isPlaying ? (
                   <Pause className="h-5 w-5" />
@@ -272,7 +325,7 @@ const ASMRVideoPlayer = () => {
                 variant="ghost"
                 size="icon"
                 className="text-foreground hover:bg-secondary"
-                disabled={!videoURL}
+                disabled={!videoSrc}
               >
                 {isMuted ? (
                   <VolumeX className="h-5 w-5" />
@@ -290,7 +343,7 @@ const ASMRVideoPlayer = () => {
                   step={1}
                   onValueChange={handleVolumeChange}
                   className="h-2 [&_[role=slider]]:bg-primary [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:rounded-full"
-                  disabled={!videoURL}
+                  disabled={!videoSrc}
                 />
               </div>
               <div className="flex items-center gap-1">
@@ -304,7 +357,7 @@ const ASMRVideoPlayer = () => {
                       "text-foreground hover:bg-secondary",
                       playbackSpeed === speed && "bg-secondary"
                     )}
-                    disabled={!videoURL}
+                    disabled={!videoSrc}
                   >
                     {speed}x
                   </Button>
@@ -320,14 +373,41 @@ const ASMRVideoPlayer = () => {
                 min={0}
                 max={100}
                 step={0.1}
-                onValueChange={([val = 0]) => onProgressSliderChange(val)}
+                onValueChange={([val = 0]) => onPlaybackSliderChange(val)}
                 className="flex-1 h-2 [&_[role=slider]]:bg-primary [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:rounded-full"
-                disabled={!videoURL}
+                disabled={!videoSrc}
               />
               <span className="text-xs text-muted-foreground w-10">{formatTime(duration)}</span>
             </div>
           </div>
         </div>
+
+        {/* Playlist sidebar */}
+        {playlist.length > 0 && (
+          <div className="w-80 min-w-[220px] max-w-xs flex flex-col gap-2 border-l border-border pl-4">
+            <div className="font-semibold mb-2">Playlist</div>
+            {playlist.map((item, idx) => (
+              <Button
+                key={item.id}
+                variant={currentIndex === idx ? "default" : "ghost"}
+                className={cn(
+                  "w-full justify-start truncate",
+                  currentIndex === idx && "font-bold"
+                )}
+                onClick={() => {
+                  setCurrentIndex(idx);
+                  setLocalVideoURL(null);
+                }}
+                disabled={ytLoading && currentIndex === idx}
+              >
+                {ytLoading && currentIndex === idx ? (
+                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                ) : null}
+                <span className="truncate">{item.title}</span>
+              </Button>
+            ))}
+          </div>
+        )}
 
         {/* Controls to the right in normal mode, below in cinema mode */}
         <div className={controlsWrapper}>
