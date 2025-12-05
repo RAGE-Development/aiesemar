@@ -8,7 +8,7 @@ const config = {
     './components/**/*.{ts,tsx}',
     './app/**/*.{ts,tsx}',
   ],
-  darkMode: ['selector', '[data-theme="dark"]'],
+  darkMode: ['class'],
   plugins: [tailwindcssAnimate, typography],
   prefix: '',
   safelist: [
@@ -48,53 +48,77 @@ const config = {
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'float': 'float 6s ease-in-out infinite',
+        'float-delayed': 'float 6s ease-in-out infinite 2s',
+        'pulse-glow': 'pulse-glow 3s ease-in-out infinite',
+        'gradient-rotate': 'gradient-rotate 8s linear infinite',
+        'fade-in': 'fade-in 0.6s ease-out forwards',
+        'fade-in-up': 'fade-in-up 0.6s ease-out forwards',
+        'fade-in-scale': 'fade-in-scale 0.5s ease-out forwards',
+        'shimmer': 'shimmer 2s infinite',
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        '2xl': '1rem',
+        '3xl': '1.5rem',
       },
       colors: {
         accent: {
-          DEFAULT: 'var(--accent)',
-          foreground: 'var(--accent-foreground)',
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
         },
-        background: 'var(--background)',
-        border: 'var(--border)',
+        background: 'hsl(var(--background))',
+        border: 'hsl(var(--border))',
         card: {
-          DEFAULT: 'var(--card)',
-          foreground: 'var(--card-foreground)',
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
         },
         destructive: {
-          DEFAULT: 'var(--destructive)',
-          foreground: 'var(--destructive-foreground)',
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
         },
-        foreground: 'var(--foreground)',
-        input: 'var(--input)',
+        foreground: 'hsl(var(--foreground))',
+        input: 'hsl(var(--input))',
         muted: {
-          DEFAULT: 'var(--muted)',
-          foreground: 'var(--muted-foreground)',
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
         },
         popover: {
-          DEFAULT: 'var(--popover)',
-          foreground: 'var(--popover-foreground)',
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
         },
         primary: {
-          DEFAULT: 'var(--primary)',
-          foreground: 'var(--primary-foreground)',
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
         },
-        ring: 'var(--ring)',
+        ring: 'hsl(var(--ring))',
         secondary: {
-          DEFAULT: 'var(--secondary)',
-          foreground: 'var(--secondary-foreground)',
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
         },
-        success: 'var(--success)',
-        error: 'var(--error)',
-        warning: 'var(--warning)',
+        success: 'hsl(var(--success))',
+        error: 'hsl(var(--error))',
+        warning: 'hsl(var(--warning))',
+        // Brand colors
+        amber: {
+          DEFAULT: 'hsl(var(--amber))',
+          glow: 'hsl(var(--amber-glow))',
+        },
+        teal: {
+          DEFAULT: 'hsl(var(--teal))',
+          glow: 'hsl(var(--teal-glow))',
+        },
+        violet: {
+          DEFAULT: 'hsl(var(--violet))',
+          glow: 'hsl(var(--violet-glow))',
+        },
       },
       fontFamily: {
-        mono: ['var(--font-geist-mono)'],
-        sans: ['var(--font-geist-sans)'],
+        display: ['var(--font-crimson)', 'Georgia', 'serif'],
+        sans: ['var(--font-dm-sans)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-jetbrains)', 'monospace'],
       },
       keyframes: {
         'accordion-down': {
@@ -105,13 +129,52 @@ const config = {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
+        'float': {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        'pulse-glow': {
+          '0%, 100%': { opacity: '1', filter: 'brightness(1)' },
+          '50%': { opacity: '0.8', filter: 'brightness(1.1)' },
+        },
+        'gradient-rotate': {
+          '0%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
+          '100%': { backgroundPosition: '0% 50%' },
+        },
+        'fade-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        'fade-in-up': {
+          from: { opacity: '0', transform: 'translateY(20px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'fade-in-scale': {
+          from: { opacity: '0', transform: 'scale(0.95)' },
+          to: { opacity: '1', transform: 'scale(1)' },
+        },
+        'shimmer': {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+      },
+      boxShadow: {
+        'glow-amber': '0 0 20px hsl(var(--amber) / 0.3), 0 0 40px hsl(var(--amber) / 0.15)',
+        'glow-teal': '0 0 20px hsl(var(--teal) / 0.3), 0 0 40px hsl(var(--teal) / 0.15)',
+        'glow-violet': '0 0 20px hsl(var(--violet) / 0.3), 0 0 40px hsl(var(--violet) / 0.15)',
+        'ambient': '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
+        'ambient-lg': '0 16px 64px rgba(0, 0, 0, 0.16), 0 4px 16px rgba(0, 0, 0, 0.1)',
+      },
+      backdropBlur: {
+        xs: '2px',
       },
       typography: () => ({
         DEFAULT: {
           css: [
             {
-              '--tw-prose-body': 'var(--text)',
-              '--tw-prose-headings': 'var(--text)',
+              '--tw-prose-body': 'hsl(var(--foreground))',
+              '--tw-prose-headings': 'hsl(var(--foreground))',
               h1: {
                 fontWeight: 'normal',
                 marginBottom: '0.25em',
