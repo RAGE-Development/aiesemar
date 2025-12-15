@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AIESEMAR is an ASMR video player web application built with Next.js 15 and React 19. It supports local video files and YouTube playlists with features like bass boost (using Web Audio API), video queue management, cinema mode, and theme switching.
+AIESEMAR is an ASMR video player web application built with Next.js 16 and React 19. It supports local video files and YouTube playlists with features like bass boost (using Web Audio API), video queue management, cinema mode, and theme switching.
 
 ## Common Commands
 
@@ -21,6 +21,12 @@ pnpm test             # Run tests once
 pnpm test:watch       # Run tests in watch mode
 pnpm test:coverage    # Run tests with coverage report
 pnpm test:ui          # Open Vitest UI
+
+# Run a single test file
+pnpm test path/to/test.test.tsx
+
+# Run tests matching a pattern
+pnpm test -t "test name pattern"
 
 # Dependencies
 pnpm ii               # Install dependencies (ignore workspace)
@@ -62,7 +68,14 @@ pnpm reinstall        # Clean reinstall all dependencies
 ## TypeScript Configuration
 
 - Strict mode enabled with `noUncheckedIndexedAccess` - always check array/object access can be undefined
+- `noImplicitOverride` enabled - must use `override` keyword when overriding base class methods
 - Path alias: `@/*` maps to project root
+
+## ESLint Configuration
+
+- Unused variables must be prefixed with `_` (e.g., `_unusedParam`)
+- Caught errors can also use `ignore` prefix (e.g., `ignoreError`)
+- `@typescript-eslint/no-explicit-any` is a warning, not an error
 
 ## Testing
 
@@ -72,6 +85,8 @@ Tests are located in `__tests__/` directories alongside components. The test set
 - Fullscreen API
 - URL.createObjectURL/revokeObjectURL
 - fetch, ResizeObserver, IntersectionObserver
+
+Coverage thresholds are set to 70% for branches, functions, lines, and statements.
 
 ## Environment Variables
 
